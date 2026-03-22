@@ -21,7 +21,7 @@ class IngestPDF:
         chunks = self.chunker.chunk(content)
         embeddings = self.embedder.embed([chunk.text for chunk in chunks])
         embedded_chunks = [
-            EmbeddedChunk(id=chunk.id, vector=embedding, source_document_id=chunk.source_document_id)
+            EmbeddedChunk(id=chunk.id, text=chunk.text, vector=embedding, source_document_id=chunk.source_document_id)
             for chunk, embedding in zip(chunks, embeddings)
         ]
         self.vector_store.add(embedded_chunks)
