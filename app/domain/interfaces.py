@@ -27,7 +27,11 @@ class VectorStore(Protocol):
         ...
 
 class LLMService(Protocol):
-    def generate_answer(self, question: str, context: List[str]) -> str:
+    def generate_answer(self, question: str, context: List[str], history: List[dict]) -> str:
         """Generate an answer based on the question and provided context."""
+        ...
+        
+    def rewrite_question(self, question: str, history: List[dict]) -> str:
+        """Rewrite a follow-up question into a standalone question using conversation history."""
         ...
         

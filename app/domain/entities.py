@@ -31,7 +31,8 @@ class RetreivedChunk:
 class Answer:
     answer: str
     question: str
-    source_documents: List[Document]
+    context: List[str]
+    history: List[dict]
 
 @dataclass
 class Query:
