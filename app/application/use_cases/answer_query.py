@@ -14,7 +14,7 @@ class AnswerQueryUseCase:
         self.vector_store = vector_store
         self.llm_service = llm_service
     
-    def execute(self, question: str, top_k: int = 3, history = None) -> Answer:
+    def prepare_answer(self, question: str, top_k: int = 10, history = None) -> Answer:
         question = self._rewrite_question(question, history)
         
         query_embedding = self.embedder.embed([question])[0]
@@ -24,24 +24,28 @@ class AnswerQueryUseCase:
         )
         context = [chunk.text for chunk in retrieved_chunks]
         
-        response = self.llm_service.generate_answer(
-            question=question,
-            context=context,
-            history=history or []
-        )
+        return context, question
+        
+    def answer(self, question: str, top_k: int = 10, history = None) -> Answer:
+        context, rewritten_question = self.prepare_answer(question, top_k, history)
+        
+        answer = self.llm_service.generate_answer(rewritten_question, context, history)
         
         updated_history = (history or []) + [
             {"role": "user", "content": question},
-            {"role": "assistant", "content": response},
+            {"role": "assistant", "content": answer},
         ]
-
+        
         return Answer(
-            question=question,
-            answer=response,
+            question=rewritten_question,
+            answer=answer,
             context=context,
             history=updated_history
         )
-        
+           
+    def stream_answer(self, question: str, context: List[str], top_k: int = 10, history = None):
+        return self.llm_service.generate_answer_stream(question, context, history or [])
+            
     def _rewrite_question(self, question: str, history) -> str:
         if not history:
             return question
