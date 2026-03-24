@@ -29,7 +29,7 @@ class ChromaVectorStore:
             query_embeddings=[query_embedding],
             n_results=top_k,
             include=["documents", "metadatas", "distances"])
-        print("Chroma query results:", results)  # Debugging line
+        
         retrieved_chunks = [
             RetreivedChunk(
                 id=chunk_id,
@@ -44,4 +44,9 @@ class ChromaVectorStore:
                 results["distances"][0],
             )
         ]
-        return retrieved_chunks
+        
+        ranked_retrieved_chunks = self._rerank(retrieved_chunks)
+        return ranked_retrieved_chunks
+    
+    def _rerank(self, chunks: List[RetreivedChunk]) -> List[RetreivedChunk]:
+        return sorted(chunks, key=lambda x: x.score, reverse=True)
