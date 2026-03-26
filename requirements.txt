@@ -5,6 +5,9 @@ openai
 langchain
 langchain-chroma
 langchain-huggingface
+langchain-text-splitters
 chromadb
-pymupdf
-pymupdf4llm
+docling
+python-multipart
+pytest
+httpx
