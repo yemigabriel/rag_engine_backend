@@ -1,14 +1,9 @@
-from curses import meta
 from typing import List
-
-from regex import E
-from torch import chunk
-from app.domain.entities import EmbeddedChunk, RetreivedChunk
 import chromadb
-
+from app.domain.entities import EmbeddedChunk, RetreivedChunk
 
 class ChromaVectorStore:
-    def __init__(self, collection_name: str="documents"):
+    def __init__(self, collection_name: str = "documents"):
         self.client = chromadb.Client()
         self.collection = self.client.get_or_create_collection(name=collection_name)
     

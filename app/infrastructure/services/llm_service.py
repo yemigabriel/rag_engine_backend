@@ -1,11 +1,5 @@
-from email import message
-from os import system
 from typing import List
-from urllib import response
-from click import prompt
 from openai import OpenAI
-
-MODEL_NAME = "gpt-4o-mini"
 SYSTEM_PROMPT = "You are a helpful assistant answering questions based on a provided document."
 USER_PROMPT_PREFIX = f"""
             You are a helpful assistant answering questions based on a provided document.
@@ -17,16 +11,18 @@ USER_PROMPT_PREFIX = f"""
             If the answer truly cannot be derived from the context, say:
             "I don't know based on the provided document."
             """
-            
+
+
 class OpenAILLMService:
-    def __init__(self, api_key: str):
+    def __init__(self, api_key: str, model_name: str = "gpt-4o-mini"):
         self.client = OpenAI(api_key=api_key)
-    
+        self.model_name = model_name
+
     def generate_answer(self, question: str, context: List[str], history: List[dict]) -> str:
         messages = self._build_messages(question, context, history)
 
         response = self.client.chat.completions.create(
-            model=MODEL_NAME,
+            model=self.model_name,
             messages=messages,
             temperature=0.2
         )
@@ -37,7 +33,7 @@ class OpenAILLMService:
         messages = self._build_messages(question, context, history)
         
         response = self.client.chat.completions.create(
-            model=MODEL_NAME,
+            model=self.model_name,
             messages=messages,
             temperature=0.2,
             stream=True
@@ -75,7 +71,7 @@ class OpenAILLMService:
         ]
 
         response = self.client.chat.completions.create(
-            model=MODEL_NAME,
+            model=self.model_name,
             messages=messages,
             temperature=0
         )
