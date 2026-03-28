@@ -3,8 +3,6 @@ __pycache__/
 *.pyc
 .venv/
 .python-version
-pyproject.toml
-uv.lock
 .env
 data/
 .DS_Store
