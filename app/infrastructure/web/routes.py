@@ -10,7 +10,7 @@ from app.infrastructure.web.api_models import AskRequest, AskResponse
 router = APIRouter()
 
 @router.post("/upload")
-async def upload_pdf(file: UploadFile = File(...)):
+def upload_pdf(file: UploadFile = File(...)):
     """Endpoint to upload a PDF file for ingestion."""
     if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files are allowed.")
