@@ -1,10 +1,13 @@
+.git
+.gitignore
 __pycache__/
-.pytest_cache
 *.pyc
 .venv/
 .python-version
 pyproject.toml
 uv.lock
 .env
+tests
 data/
 .DS_Store
+.pytest_cache
