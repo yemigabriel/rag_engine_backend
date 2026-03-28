@@ -1,12 +1,35 @@
 from typing import List
+import os
+
 import chromadb
+
 from app.domain.entities import EmbeddedChunk, RetreivedChunk
 
+
 class ChromaVectorStore:
-    def __init__(self, collection_name: str = "documents"):
-        self.client = chromadb.Client()
+    def __init__(
+        self,
+        collection_name: str = "documents",
+        backend: str = "persistent",
+        persist_path: str = "./data/chroma",
+        host: str | None = None,
+        port: int = 8000,
+        ssl: bool = False,
+    ):
+        if backend == "memory":
+            self.client = chromadb.Client()
+        elif backend == "persistent":
+            os.makedirs(persist_path, exist_ok=True)
+            self.client = chromadb.PersistentClient(path=persist_path)
+        elif backend == "http":
+            if not host:
+                raise ValueError("host is required for Chroma HTTP mode")
+            self.client = chromadb.HttpClient(host=host, port=port, ssl=ssl)
+        else:
+            raise ValueError(f"Unsupported Chroma backend: {backend}")
+
         self.collection = self.client.get_or_create_collection(name=collection_name)
-    
+
     def add(self, chunks: List[EmbeddedChunk]) -> None:
         ids = [chunk.id for chunk in chunks]
         embeddings = [chunk.vector for chunk in chunks]
@@ -18,7 +41,7 @@ class ChromaVectorStore:
             documents=documents,
             metadatas=metadatas
         )
-    
+
     def retrieve(self, query_embedding: List[float], top_k: int) -> List[RetreivedChunk]:
         results = self.collection.query(
             query_embeddings=[query_embedding],
@@ -42,6 +65,6 @@ class ChromaVectorStore:
         
         ranked_retrieved_chunks = self._rerank(retrieved_chunks)
         return ranked_retrieved_chunks
-    
+
     def _rerank(self, chunks: List[RetreivedChunk]) -> List[RetreivedChunk]:
         return sorted(chunks, key=lambda x: x.score, reverse=True)
