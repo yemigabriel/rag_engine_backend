@@ -9,5 +9,3 @@ langchain-text-splitters
 chromadb
 docling
 python-multipart
-pytest
-httpx
