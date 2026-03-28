@@ -9,5 +9,5 @@ langchain-text-splitters
 chromadb
 docling
 python-multipart
-rapidocr
+rapidocr_onnxruntime
 onnxruntime
