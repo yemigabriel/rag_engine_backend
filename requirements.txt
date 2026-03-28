@@ -11,4 +11,4 @@ docling
 python-multipart
 rapidocr 
 onnxruntime
-rapidocr_onnxruntime
+rapidocr-onnxruntime
