@@ -10,8 +10,8 @@ class Settings:
             "OPENAI_EMBEDDING_MODEL",
             "text-embedding-3-small",
         )
-        self.chunk_size = int(os.getenv("CHUNK_SIZE", "500"))
-        self.chunk_overlap = int(os.getenv("CHUNK_OVERLAP", "100"))
+        self.chunk_size = int(os.getenv("CHUNK_SIZE", "1000"))
+        self.chunk_overlap = int(os.getenv("CHUNK_OVERLAP", "200"))
         self.chroma_collection_name = os.getenv("CHROMA_COLLECTION_NAME", "documents")
 
     def validate(self) -> None:
