@@ -9,3 +9,5 @@ langchain-text-splitters
 chromadb
 docling
 python-multipart
+rapidocr
+onnxruntime
