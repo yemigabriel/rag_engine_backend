@@ -115,3 +115,34 @@ class FakeAnswerQueryUseCase:
         )
         yield "Hello "
         yield "world"
+
+
+class FakeQueuedJob:
+    def __init__(self, job_id="job-123", status="queued", result=None, exc_info=None):
+        self.id = job_id
+        self._status = status
+        self.result = result
+        self.exc_info = exc_info
+
+    @property
+    def is_failed(self):
+        return self._status == "failed"
+
+    def get_status(self, refresh=False):
+        return self._status
+
+
+class FakeQueue:
+    def __init__(self):
+        self.calls = []
+        self.job = FakeQueuedJob()
+
+    def enqueue(self, job_path, file_bytes, filename):
+        self.calls.append(
+            {
+                "job_path": job_path,
+                "file_bytes": file_bytes,
+                "filename": filename,
+            }
+        )
+        return self.job
