@@ -6,7 +6,7 @@ from docling.document_converter import DocumentConverter, PdfFormatOption
 
 class DoclingParser:
     def __init__(self, converter=None, ocr_converter=None):
-        self.converter = converter or self._build_converter(enable_ocr=False)
+        self.converter = converter or self._build_converter(enable_ocr=True)
         self._ocr_converter = ocr_converter
 
     def parse(self, document_path: str) -> str:
