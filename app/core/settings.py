@@ -1,4 +1,5 @@
 import os
+import platform
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -20,10 +21,14 @@ class Settings:
         self.chroma_host = os.getenv("CHROMA_HOST")
         self.chroma_port = int(os.getenv("CHROMA_PORT", "8000"))
         self.chroma_ssl = os.getenv("CHROMA_SSL", "false").lower() == "true"
-        self.redis_url = os.getenv("REDIS_URL")
+        self.redis_url = os.getenv("REDIS_URL", "redis://127.0.0.1:6379/0")
         self.rq_queue_name = os.getenv("RQ_QUEUE_NAME", "pdf_ingestion")
         self.rq_job_timeout = int(os.getenv("RQ_JOB_TIMEOUT", "1800"))
-        self.upload_max_bytes = int(os.getenv("UPLOAD_MAX_BYTES", str(10 * 1024 * 1024)))
+        self.rq_worker_class = os.getenv(
+            "RQ_WORKER_CLASS",
+            "simple" if platform.system() == "Darwin" else "worker",
+        ).lower()
+        self.upload_max_bytes = int(os.getenv("UPLOAD_MAX_BYTES", str(25 * 1024 * 1024)))
 
     def validate(self) -> None:
         if not self.openai_api_key:
@@ -40,6 +45,8 @@ class Settings:
             raise ValueError("CHROMA_HOST is required when VECTOR_STORE_BACKEND=http.")
         if self.rq_job_timeout <= 0:
             raise ValueError("RQ_JOB_TIMEOUT must be greater than 0.")
+        if self.rq_worker_class not in {"worker", "simple", "spawn"}:
+            raise ValueError("RQ_WORKER_CLASS must be worker, simple, or spawn.")
         if self.upload_max_bytes <= 0:
             raise ValueError("UPLOAD_MAX_BYTES must be greater than 0.")
 

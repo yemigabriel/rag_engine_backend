@@ -2,6 +2,7 @@ import json
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
+from redis.exceptions import RedisError
 
 from app.core.dependencies import get_answer_query_use_case
 from app.core.settings import settings
@@ -14,6 +15,13 @@ from app.infrastructure.web.api_models import (
 )
 
 router = APIRouter()
+
+
+def _queue_unavailable_error(exc: Exception) -> HTTPException:
+    return HTTPException(
+        status_code=503,
+        detail=f"Background worker queue is unavailable: {exc}",
+    )
 
 
 @router.post("/upload", response_model=UploadJobResponse, status_code=202)
@@ -33,24 +41,32 @@ async def upload_pdf(file: UploadFile = File(...)):
                 detail=f"PDF exceeds max upload size of {settings.upload_max_bytes} bytes.",
             )
 
-        job = get_ingestion_queue().enqueue(
-            "app.infrastructure.jobs.ingest_pdf_job.ingest_pdf_job",
-            file_bytes,
-            file.filename,
-        )
+        try:
+            job = get_ingestion_queue().enqueue(
+                "app.infrastructure.jobs.ingest_pdf_job.ingest_pdf_job",
+                file_bytes,
+                file.filename,
+            )
+        except (RedisError, ValueError) as exc:
+            raise _queue_unavailable_error(exc) from exc
 
         return UploadJobResponse(
             job_id=job.id,
             status=job.get_status(refresh=True),
             filename=file.filename,
         )
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/jobs/{job_id}", response_model=JobStatusResponse)
 def get_job_status(job_id: str):
-    job = fetch_job(job_id)
+    try:
+        job = fetch_job(job_id)
+    except (RedisError, ValueError) as exc:
+        raise _queue_unavailable_error(exc) from exc
 
     if not job:
         raise HTTPException(status_code=404, detail="Job not found.")
