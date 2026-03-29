@@ -6,6 +6,7 @@ import types
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from app.infrastructure.web.api_models import JobStatus
 from tests.fakes import FakeAnswerQueryUseCase, FakeQueue, FakeQueuedJob
 
 
@@ -57,7 +58,7 @@ def test_upload_pdf_enqueues_ingestion_job():
     assert response.status_code == 202
     assert response.json() == {
         "job_id": "job-123",
-        "status": "uploaded document",
+        "status": JobStatus.UPLOADED_DOCUMENT,
         "filename": "sample.pdf",
     }
     assert fake_queue_module.queue.calls == [
@@ -142,7 +143,7 @@ def test_get_job_status_returns_finished_job():
     assert response.status_code == 200
     assert response.json() == {
         "job_id": "job-123",
-        "status": "document ready",
+        "status": JobStatus.DOCUMENT_READY,
         "filename": "sample.pdf",
         "result": {
             "filename": "sample.pdf",
@@ -161,7 +162,7 @@ def test_get_job_status_returns_started_label():
     assert response.status_code == 200
     assert response.json() == {
         "job_id": "job-123",
-        "status": "Analysing document",
+        "status": JobStatus.INGESTING_DOC,
         "filename": None,
         "result": None,
         "error": None,
@@ -180,7 +181,7 @@ def test_get_job_status_returns_failed_label():
     assert response.status_code == 200
     assert response.json() == {
         "job_id": "job-123",
-        "status": "Failed",
+        "status": JobStatus.FAILED,
         "filename": None,
         "result": None,
         "error": "ValueError: parse failed",
