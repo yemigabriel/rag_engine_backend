@@ -1,5 +1,13 @@
+from enum import StrEnum
 from typing import Dict, List
 from pydantic import BaseModel
+
+
+class JobStatus(StrEnum):
+    UPLOADED_DOCUMENT = "Uploaded document successfully"
+    INGESTING_DOC = "Analysing document"
+    DOCUMENT_READY = "Document ready"
+    FAILED = "Failed"
 
 
 class AskRequest(BaseModel):
@@ -17,13 +25,13 @@ class AskResponse(BaseModel):
 
 class UploadJobResponse(BaseModel):
     job_id: str
-    status: str
+    status: JobStatus
     filename: str
 
 
 class JobStatusResponse(BaseModel):
     job_id: str
-    status: str
+    status: JobStatus
     filename: str | None = None
     result: dict | None = None
     error: str | None = None

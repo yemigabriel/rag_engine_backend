@@ -10,11 +10,23 @@ from app.infrastructure.queue.rq import fetch_job, get_ingestion_queue
 from app.infrastructure.web.api_models import (
     AskRequest,
     AskResponse,
+    JobStatus,
     JobStatusResponse,
     UploadJobResponse,
 )
 
 router = APIRouter()
+
+JOB_STATUS_MAP = {
+    "queued": JobStatus.UPLOADED_DOCUMENT,
+    "deferred": JobStatus.UPLOADED_DOCUMENT,
+    "scheduled": JobStatus.UPLOADED_DOCUMENT,
+    "started": JobStatus.INGESTING_DOC,
+    "finished": JobStatus.DOCUMENT_READY,
+    "failed": JobStatus.FAILED,
+    "stopped": JobStatus.FAILED,
+    "canceled": JobStatus.FAILED,
+}
 
 
 def _queue_unavailable_error(exc: Exception) -> HTTPException:
@@ -22,6 +34,10 @@ def _queue_unavailable_error(exc: Exception) -> HTTPException:
         status_code=503,
         detail=f"Background worker queue is unavailable: {exc}",
     )
+
+
+def _map_job_status(status: str) -> JobStatus:
+    return JOB_STATUS_MAP.get(status, JobStatus.ANALYSING_OR_INGESTING_DOC)
 
 
 @router.post("/upload", response_model=UploadJobResponse, status_code=202)
@@ -52,7 +68,7 @@ async def upload_pdf(file: UploadFile = File(...)):
 
         return UploadJobResponse(
             job_id=job.id,
-            status=job.get_status(refresh=True),
+            status=_map_job_status(job.get_status(refresh=True)),
             filename=file.filename,
         )
     except HTTPException:
@@ -82,7 +98,7 @@ def get_job_status(job_id: str):
 
     return JobStatusResponse(
         job_id=job.id,
-        status=job.get_status(refresh=True),
+        status=_map_job_status(job.get_status(refresh=True)),
         filename=filename,
         result=result,
         error=error,
