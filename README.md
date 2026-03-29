@@ -2,6 +2,16 @@
 
 A lightweight Retrieval-Augmented Generation (RAG) backend for ingesting PDFs and answering questions over their contents.
 
+
+## Client App
+
+The companion Swift iOS app for this backend is available here:
+
+- [DocAsk](https://github.com/yemigabriel/DocAsk)
+
+The app connects to this backend for document upload, ingestion status tracking, and retrieval-augmented question answering.
+
+
 ## Overview
 
 The service:
