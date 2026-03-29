@@ -9,7 +9,7 @@ from fastapi.testclient import TestClient
 from tests.fakes import FakeAnswerQueryUseCase, FakeQueue, FakeQueuedJob
 
 
-def build_test_client():
+def build_test_client(queue_error=None, fetch_job_error=None):
     fake_dependencies = types.ModuleType("app.core.dependencies")
     fake_answer_query_use_case = FakeAnswerQueryUseCase()
     fake_dependencies.get_answer_query_use_case = lambda: fake_answer_query_use_case
@@ -17,8 +17,21 @@ def build_test_client():
     fake_queue_module = types.ModuleType("app.infrastructure.queue.rq")
     fake_queue_module.queue = FakeQueue()
     fake_queue_module.jobs = {}
-    fake_queue_module.get_ingestion_queue = lambda: fake_queue_module.queue
-    fake_queue_module.fetch_job = lambda job_id: fake_queue_module.jobs.get(job_id)
+    if queue_error is None:
+        fake_queue_module.get_ingestion_queue = lambda: fake_queue_module.queue
+    else:
+        def get_ingestion_queue():
+            raise queue_error
+
+        fake_queue_module.get_ingestion_queue = get_ingestion_queue
+
+    if fetch_job_error is None:
+        fake_queue_module.fetch_job = lambda job_id: fake_queue_module.jobs.get(job_id)
+    else:
+        def fetch_job(_job_id):
+            raise fetch_job_error
+
+        fake_queue_module.fetch_job = fetch_job
 
     sys.modules.pop("app.infrastructure.web.routes", None)
     sys.modules["app.core.dependencies"] = fake_dependencies
@@ -44,7 +57,7 @@ def test_upload_pdf_enqueues_ingestion_job():
     assert response.status_code == 202
     assert response.json() == {
         "job_id": "job-123",
-        "status": "queued",
+        "status": "uploaded document",
         "filename": "sample.pdf",
     }
     assert fake_queue_module.queue.calls == [
@@ -66,6 +79,20 @@ def test_upload_rejects_non_pdf_files():
 
     assert response.status_code == 400
     assert response.json() == {"detail": "Only PDF files are allowed."}
+
+
+def test_upload_returns_503_when_queue_is_unavailable():
+    client, _, _ = build_test_client(queue_error=ValueError("redis offline"))
+
+    response = client.post(
+        "/upload",
+        files={"file": ("sample.pdf", b"%PDF-1.4 test", "application/pdf")},
+    )
+
+    assert response.status_code == 503
+    assert response.json() == {
+        "detail": "Background worker queue is unavailable: redis offline"
+    }
 
 
 def test_ask_returns_answer_payload():
@@ -115,13 +142,59 @@ def test_get_job_status_returns_finished_job():
     assert response.status_code == 200
     assert response.json() == {
         "job_id": "job-123",
-        "status": "finished",
+        "status": "document ready",
         "filename": "sample.pdf",
         "result": {
             "filename": "sample.pdf",
             "message": "PDF ingested successfully.",
         },
         "error": None,
+    }
+
+
+def test_get_job_status_returns_started_label():
+    client, _, fake_queue_module = build_test_client()
+    fake_queue_module.jobs["job-123"] = FakeQueuedJob(status="started")
+
+    response = client.get("/jobs/job-123")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "job_id": "job-123",
+        "status": "Analysing document",
+        "filename": None,
+        "result": None,
+        "error": None,
+    }
+
+
+def test_get_job_status_returns_failed_label():
+    client, _, fake_queue_module = build_test_client()
+    fake_queue_module.jobs["job-123"] = FakeQueuedJob(
+        status="failed",
+        exc_info="Traceback...\nValueError: parse failed",
+    )
+
+    response = client.get("/jobs/job-123")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "job_id": "job-123",
+        "status": "Failed",
+        "filename": None,
+        "result": None,
+        "error": "ValueError: parse failed",
+    }
+
+
+def test_get_job_status_returns_503_when_queue_is_unavailable():
+    client, _, _ = build_test_client(fetch_job_error=ValueError("redis offline"))
+
+    response = client.get("/jobs/job-123")
+
+    assert response.status_code == 503
+    assert response.json() == {
+        "detail": "Background worker queue is unavailable: redis offline"
     }
 
 
