@@ -14,3 +14,6 @@ onnxruntime
 rapidocr-onnxruntime
 redis
 rq
+pinecone
+boto3
+transformers<5
