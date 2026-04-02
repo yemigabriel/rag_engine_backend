@@ -39,7 +39,6 @@ def _queue_unavailable_error(exc: Exception) -> HTTPException:
 def _map_job_status(status: str) -> JobStatus:
     return JOB_STATUS_MAP.get(status, JobStatus.INGESTING_DOC)
 
-
 @router.post("/upload", response_model=UploadJobResponse, status_code=202)
 async def upload_pdf(file: UploadFile = File(...)):
     """Upload a PDF and enqueue it for background ingestion."""

@@ -21,6 +21,9 @@ class Settings:
         self.chroma_host = os.getenv("CHROMA_HOST")
         self.chroma_port = int(os.getenv("CHROMA_PORT", "8000"))
         self.chroma_ssl = os.getenv("CHROMA_SSL", "false").lower() == "true"
+        self.pinecone_api_key = os.getenv("PINECONE_API_KEY")
+        self.pinecone_index_host = os.getenv("PINECONE_INDEX_HOST")
+        self.pinecone_namespace = os.getenv("PINECONE_NAMESPACE", "default")
         self.redis_url = os.getenv("REDIS_URL", "redis://127.0.0.1:6379/0")
         self.rq_queue_name = os.getenv("RQ_QUEUE_NAME", "pdf_ingestion")
         self.rq_job_timeout = int(os.getenv("RQ_JOB_TIMEOUT", "1800"))
@@ -39,10 +42,21 @@ class Settings:
             raise ValueError("CHUNK_OVERLAP cannot be negative.")
         if self.chunk_overlap >= self.chunk_size:
             raise ValueError("CHUNK_OVERLAP must be smaller than CHUNK_SIZE.")
-        if self.vector_store_backend not in {"memory", "persistent", "http"}:
-            raise ValueError("VECTOR_STORE_BACKEND must be memory, persistent, or http.")
+        if self.vector_store_backend not in {"memory", "persistent", "http", "pinecone"}:
+            raise ValueError(
+                "VECTOR_STORE_BACKEND must be memory, persistent, http, or pinecone."
+            )
         if self.vector_store_backend == "http" and not self.chroma_host:
             raise ValueError("CHROMA_HOST is required when VECTOR_STORE_BACKEND=http.")
+        if self.vector_store_backend == "pinecone":
+            if not self.pinecone_api_key:
+                raise ValueError(
+                    "PINECONE_API_KEY is required when VECTOR_STORE_BACKEND=pinecone."
+                )
+            if not self.pinecone_index_host:
+                raise ValueError(
+                    "PINECONE_INDEX_HOST is required when VECTOR_STORE_BACKEND=pinecone."
+                )
         if self.rq_job_timeout <= 0:
             raise ValueError("RQ_JOB_TIMEOUT must be greater than 0.")
         if self.rq_worker_class not in {"worker", "simple", "spawn"}:

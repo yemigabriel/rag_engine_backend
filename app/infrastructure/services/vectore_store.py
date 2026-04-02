@@ -68,3 +68,71 @@ class ChromaVectorStore:
 
     def _rerank(self, chunks: List[RetreivedChunk]) -> List[RetreivedChunk]:
         return sorted(chunks, key=lambda x: x.score, reverse=True)
+
+
+class PineconeVectorStore:
+    def __init__(self, api_key: str, index_host: str, namespace: str = "default"):
+        try:
+            from pinecone import Pinecone
+        except ImportError as exc:
+            raise ImportError(
+                "pinecone is required when VECTOR_STORE_BACKEND=pinecone."
+            ) from exc
+
+        self.namespace = namespace
+        self.index = Pinecone(api_key=api_key).Index(host=index_host)
+
+    def add(self, chunks: List[EmbeddedChunk]) -> None:
+        vectors = [
+            {
+                "id": chunk.id,
+                "values": chunk.vector,
+                "metadata": {
+                    "text": chunk.text,
+                    "source_document_id": chunk.source_document_id,
+                },
+            }
+            for chunk in chunks
+        ]
+        if vectors:
+            self.index.upsert(vectors=vectors, namespace=self.namespace)
+
+    def retrieve(self, query_embedding: List[float], top_k: int) -> List[RetreivedChunk]:
+        results = self.index.query(
+            vector=query_embedding,
+            top_k=top_k,
+            namespace=self.namespace,
+            include_metadata=True,
+        )
+        matches = getattr(results, "matches", None)
+        if matches is None and isinstance(results, dict):
+            matches = results.get("matches", [])
+        matches = matches or []
+
+        retrieved_chunks = [
+            RetreivedChunk(
+                id=self._read_match_field(match, "id"),
+                text=self._read_match_metadata(match).get("text", ""),
+                source_document_id=self._read_match_metadata(match).get(
+                    "source_document_id",
+                    "unknown",
+                ),
+                score=float(self._read_match_field(match, "score", 0.0)),
+            )
+            for match in matches
+        ]
+        return self._rerank(retrieved_chunks)
+
+    def _rerank(self, chunks: List[RetreivedChunk]) -> List[RetreivedChunk]:
+        return sorted(chunks, key=lambda x: x.score, reverse=True)
+
+    @staticmethod
+    def _read_match_field(match, field: str, default=None):
+        if isinstance(match, dict):
+            return match.get(field, default)
+        return getattr(match, field, default)
+
+    @classmethod
+    def _read_match_metadata(cls, match) -> dict:
+        metadata = cls._read_match_field(match, "metadata", {})
+        return metadata if isinstance(metadata, dict) else {}

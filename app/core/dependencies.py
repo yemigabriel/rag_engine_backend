@@ -7,7 +7,7 @@ from app.infrastructure.services.llm_service import OpenAILLMService
 from app.infrastructure.services.chunker import LangChainChunker
 from app.infrastructure.services.openai_embedder import OpenAIEmbedder
 from app.infrastructure.services.pdf_parser import DoclingParser
-from app.infrastructure.services.vectore_store import ChromaVectorStore
+from app.infrastructure.services.vectore_store import ChromaVectorStore, PineconeVectorStore
 
 settings.validate()
 
@@ -35,6 +35,12 @@ def get_embedder() -> OpenAIEmbedder:
 
 @lru_cache
 def get_vector_store() -> ChromaVectorStore:
+    if settings.vector_store_backend == "pinecone":
+        return PineconeVectorStore(
+            api_key=settings.pinecone_api_key,
+            index_host=settings.pinecone_index_host,
+            namespace=settings.pinecone_namespace,
+        )
     return ChromaVectorStore(
         collection_name=settings.chroma_collection_name,
         backend=settings.vector_store_backend,
@@ -43,7 +49,6 @@ def get_vector_store() -> ChromaVectorStore:
         port=settings.chroma_port,
         ssl=settings.chroma_ssl,
     )
-
 
 @lru_cache
 def get_llm_service() -> OpenAILLMService:
