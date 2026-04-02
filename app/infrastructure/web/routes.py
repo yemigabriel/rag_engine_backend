@@ -135,18 +135,9 @@ async def ask_question_stream(request: AskRequest):
         full_answer = ""
         try:
             answer_query_use_case = get_answer_query_use_case()
-            print("Preparing answer...")
-            context, rewritten_question = answer_query_use_case.prepare_answer(
-                question=request.question,
-                top_k=request.top_k,
-                history=request.history
-            )
-
-            print(f"Rewritten question: {rewritten_question}, Context chunks: {len(context)}")
-
+            
             for chunk in answer_query_use_case.stream_answer(
                 question=request.question,
-                context=context,
                 top_k=request.top_k,
                 history=request.history
             ):
@@ -158,14 +149,14 @@ async def ask_question_stream(request: AskRequest):
             return
 
         updated_history = (request.history or []) + [
-            {"role": "user", "content": rewritten_question},
+            {"role": "user", "content": request.question},
             {"role": "assistant", "content": full_answer},
         ]
 
         final_payload = AskResponse(
             question=request.question,
             answer=full_answer,
-            context=context,
+            context=[],
             history=updated_history
         ).model_dump()
 

@@ -1,5 +1,5 @@
 from typing import List, Protocol
-from app.domain.entities import Chunk, EmbeddedChunk, RetreivedChunk
+from app.domain.entities import Chunk, EmbeddedChunk, QueryRewrite, RetreivedChunk
 
 
 class DocumentParser(Protocol):
@@ -35,7 +35,15 @@ class LLMService(Protocol):
         """Stream an answer based on the question and provided context."""
         ...
         
-    def rewrite_question(self, question: str, history: List[dict]) -> str:
+    def rewrite_question(self, question: str, history: List[dict]) -> QueryRewrite:
         """Rewrite a follow-up question into a standalone question using conversation history."""
+        ...
+    
+    def generate_conversational_answer(self, question: str, context: List[str], history: List[dict]) -> str:
+        """Generate an answer in a conversational manner, without retrieval."""
+        ...
+    
+    def generate_conversational_answer_stream(self, question: str, context: List[str], history: List[dict]):
+        """Stream an answer in a conversational manner, without retrieval."""
         ...
         

@@ -1,5 +1,5 @@
 from typing import Dict, List
-from app.domain.entities import Answer, EmbeddedChunk
+from app.domain.entities import Answer, EmbeddedChunk, QueryRewrite
 from app.domain.interfaces import Embedder, LLMService, VectorStore
 
 
@@ -14,8 +14,15 @@ class AnswerQueryUseCase:
         self.vector_store = vector_store
         self.llm_service = llm_service
     
-    def prepare_answer(self, question: str, top_k: int = 10, history = None) -> Answer:
-        question = self._rewrite_question(question, history)
+    def prepare_answer(self, question: str, top_k: int = 10, history = None):
+        rewrite_result = self._rewrite_question(question, history)
+        
+        rewritten_question = rewrite_result.standalone_query
+        needs_retrieval = rewrite_result.needs_retrieval
+        
+        if not needs_retrieval:
+            return [], rewritten_question, False
+        
         
         query_embedding = self.embedder.embed([question])[0]
         retrieved_chunks: List[EmbeddedChunk] = self.vector_store.retrieve(
@@ -24,12 +31,14 @@ class AnswerQueryUseCase:
         )
         context = [chunk.text for chunk in retrieved_chunks]
         
-        return context, question
+        return context, rewritten_question, True
         
     def answer(self, question: str, top_k: int = 10, history = None) -> Answer:
-        context, rewritten_question = self.prepare_answer(question, top_k, history)
-        
-        answer = self.llm_service.generate_answer(rewritten_question, context, history)
+        context, rewritten_question, needs_retrieval = self.prepare_answer(question, top_k, history)
+        if needs_retrieval:
+            answer = self.llm_service.generate_answer(rewritten_question, context, history)
+        else:
+            answer = self.llm_service.generate_conversational_answer(rewritten_question, [], history)
         
         updated_history = (history or []) + [
             {"role": "user", "content": question},
@@ -43,15 +52,19 @@ class AnswerQueryUseCase:
             history=updated_history
         )
            
-    def stream_answer(self, question: str, context: List[str], top_k: int = 10, history = None):
-        return self.llm_service.generate_answer_stream(question, context, history or [])
+    def stream_answer(self, question: str, top_k: int = 10, history = None):
+        context, rewritten_question, needs_retrieval = self.prepare_answer(question, top_k, history)
+        if needs_retrieval:
+            answer = self.llm_service.generate_answer_stream(rewritten_question, context, history or [])
+        else:
+            answer = self.llm_service.generate_conversational_answer_stream(rewritten_question, [], history or [])
             
-    def _rewrite_question(self, question: str, history) -> str:
-        if not history:
-            return question
-
-        rewritten = self.llm_service.rewrite_question(
+        return answer
+            
+    def _rewrite_question(self, question: str, history) -> QueryRewrite:
+        rewrite_result = self.llm_service.rewrite_question(
             question=question,
             history=history or []
         )
-        return rewritten.strip()
+        
+        return rewrite_result
