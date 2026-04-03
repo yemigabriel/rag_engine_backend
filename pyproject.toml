@@ -23,6 +23,7 @@ dependencies = [
     "rapidocr-onnxruntime>=1.4.4",
     "rq>=2.6.0",
     "uvicorn>=0.42.0",
+    "transformers>=4.46,<5",
 ]
 
 [dependency-groups]

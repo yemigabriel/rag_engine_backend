@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from typing import List
 
+from pydantic import BaseModel, Field
+
 
 @dataclass
 class Document:
@@ -37,3 +39,11 @@ class Answer:
 @dataclass
 class Query:
     question: str
+
+class QueryRewrite(BaseModel):
+    needs_retrieval: bool = Field(
+        description="Whether a database search is required to answer the question."
+    )
+    standalone_query: str = Field(
+        description="The rewritten query, or the original query if no rewrite is needed."
+    )

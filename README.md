@@ -1,115 +1,83 @@
 # RAG Engine Backend
 
-A lightweight Retrieval-Augmented Generation (RAG) backend for ingesting PDFs and answering questions over their contents.
+A FastAPI backend for uploading PDFs, processing them asynchronously, and answering questions over their contents with RAG (retrieval-augmented generation).
 
-## Overview
+## Client App
 
-The service:
+The companion Swift iOS app for this backend is [DocAsk](https://github.com/yemigabriel/DocAsk).
 
-1. Parses uploaded PDFs with Docling
-2. Splits extracted text into chunks
-3. Embeds chunks with OpenAI `text-embedding-3-small`
-4. Stores embeddings in Chroma
-5. Retrieves relevant chunks for a query
-6. Generates answers with OpenAI `gpt-4o-mini`
+## What It Does
 
-The HTTP API is built with FastAPI and supports both standard and streaming responses.
+- accepts PDF uploads
+- queues ingestion with Redis + RQ
+- parses documents with Docling
+- chunks and embeds content with OpenAI
+- stores vectors in Chroma or Pinecone
+- answers questions with standard and streaming responses
 
-## Architecture
+## Stack
 
-The codebase follows a layered structure:
+- Python
+- FastAPI
+- Redis + RQ
+- Docling
+- OpenAI
+- Chroma / Pinecone
+- Docker Compose
 
-- `app/domain`: core entities and service contracts
-- `app/application/use_cases`: ingestion and question-answering workflows
-- `app/infrastructure/services`: concrete adapters for parsing, chunking, embeddings, vector storage, and LLM calls
-- `app/infrastructure/web`: FastAPI app, routes, and API models
-- `app/core/dependencies.py`: runtime wiring of services and use cases
+## Run
 
-## Requirements
-
-- Python 3.12+
-- OpenAI API key
-
-Set the environment variable:
+Add `OPENAI_API_KEY` to your `.env`, then start the app with:
 
 ```bash
-export OPENAI_API_KEY=your_api_key
+docker compose up --build
 ```
 
-## Installation
-
-Using `uv`:
-
-```bash
-uv sync
-```
-
-Using `pip`:
-
-```bash
-pip install -r requirements.txt
-```
-
-## Running Tests
-
-Run the full test suite with `uv`:
-
-```bash
-uv run pytest -q tests
-```
-
-Or with `pytest` directly:
-
-```bash
-pytest -q tests
-```
-
-Current test coverage includes:
-
-- unit tests for `IngestPDF`
-- unit tests for `AnswerQueryUseCase`
-- API route tests for `/upload`, `/ask`, and `/ask/stream`
-
-Test doubles are centralized in `tests/fakes.py`, and `pytest` is configured in `pyproject.toml` to resolve imports from the project root.
-
-## Running The API
-
-```bash
-uvicorn app.infrastructure.web.main:app --reload
-```
-
-
+The API will be available at `http://127.0.0.1:8000`.
 
 ## API
 
 ### `POST /upload`
 
-Uploads and ingests a PDF file.
-
-Multipart form field:
-
-- `file`: PDF document
-
-Example:
+Uploads a PDF and returns a background job id.
 
 ```bash
 curl -X POST http://127.0.0.1:8000/upload \
   -F "file=@document.pdf"
 ```
 
-Response:
+Example response:
 
 ```json
 {
-  "message": "PDF ingested successfully."
+  "job_id": "9e39aa29-5679-40d1-b840-53a0945a1aae",
+  "status": "Uploaded document successfully",
+  "filename": "document.pdf"
+}
+```
+
+### `GET /jobs/{job_id}`
+
+Returns the ingestion job status.
+
+Example response:
+
+```json
+{
+  "job_id": "9e39aa29-5679-40d1-b840-53a0945a1aae",
+  "status": "Document ready",
+  "filename": "document.pdf",
+  "result": {
+    "filename": "document.pdf",
+    "message": "PDF ingested successfully."
+  },
+  "error": null
 }
 ```
 
 ### `POST /ask`
 
-Returns a completed answer for a question.
-
-Request body:
+Returns a complete answer for a question.
 
 ```json
 {
@@ -119,7 +87,7 @@ Request body:
 }
 ```
 
-Response body:
+Example response:
 
 ```json
 {
@@ -135,35 +103,19 @@ Response body:
 
 ### `POST /ask/stream`
 
-Streams answer tokens as Server-Sent Events and finishes with a `done` payload containing the same shape as `/ask`.
+Streams answer tokens as Server-Sent Events and finishes with a `done` event.
 
-Event types:
+```text
+data: {"type":"token","content":"Hello "}
 
-- `token`: partial answer text
-- `error`: terminal error message
-- `done`: final structured response payload
+data: {"type":"token","content":"world"}
 
-## Request Flow
+data: {"type":"done","payload":{"question":"Stream this","answer":"Hello world","context":["Chunk A","Chunk B"],"history":[{"role":"user","content":"Rewritten question"},{"role":"assistant","content":"Hello world"}]}}
+```
 
-### Ingestion
+## Notes
 
-`/upload` -> `IngestPDF.execute()` -> parse -> chunk -> embed -> store
-
-### Question Answering
-
-`/ask` or `/ask/stream` -> optional question rewrite from chat history -> embed query -> retrieve top-k chunks -> generate answer
-
-## Key Implementation Details
-
-- PDF parsing: Docling
-- Chunking: LangChain `RecursiveCharacterTextSplitter`
-- Embeddings model: OpenAI `text-embedding-3-small`
-- Answer model: OpenAI `gpt-4o-mini`
-- Vector store: Chroma collection `documents`
-- Follow-up questions can be rewritten into standalone questions using prior chat history
-
-## Development Notes
-
-- Dependency wiring happens at import time in `app/core/dependencies.py`
-- The API entry point is `app/infrastructure/web/main.py`
-- Tests live under `tests/`
+- background ingestion runs through a separate worker
+- follow-up questions can be rewritten into standalone queries
+- the main API entry point is `app/infrastructure/web/main.py`
+- the worker entry point is `worker.py`

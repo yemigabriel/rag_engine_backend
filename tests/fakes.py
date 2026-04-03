@@ -1,3 +1,6 @@
+from app.domain.entities import QueryRewrite
+
+
 class FakeEmbedder:
     def __init__(self, responses):
         self.responses = responses
@@ -64,7 +67,10 @@ class FakeLLMService:
 
     def rewrite_question(self, question, history):
         self.rewrite_question_calls.append({"question": question, "history": history})
-        return self.rewritten_question
+        return QueryRewrite(
+            needs_retrieval=True,
+            standalone_query=self.rewritten_question,
+        )
 
 
 class FakeIngestPDFUseCase:
@@ -78,7 +84,6 @@ class FakeIngestPDFUseCase:
 class FakeAnswerQueryUseCase:
     def __init__(self):
         self.answer_calls = []
-        self.prepare_calls = []
         self.stream_calls = []
 
     def answer(self, question: str, top_k: int = 10, history=None):
@@ -98,20 +103,44 @@ class FakeAnswerQueryUseCase:
             ],
         )
 
-    def prepare_answer(self, question: str, top_k: int = 10, history=None):
-        self.prepare_calls.append(
-            {"question": question, "top_k": top_k, "history": history}
-        )
-        return ["Chunk A", "Chunk B"], "Rewritten question"
-
-    def stream_answer(self, question: str, context, top_k: int = 10, history=None):
+    def stream_answer(self, question: str, top_k: int = 10, history=None):
         self.stream_calls.append(
             {
                 "question": question,
-                "context": context,
                 "top_k": top_k,
                 "history": history,
             }
         )
         yield "Hello "
         yield "world"
+
+
+class FakeQueuedJob:
+    def __init__(self, job_id="job-123", status="queued", result=None, exc_info=None):
+        self.id = job_id
+        self._status = status
+        self.result = result
+        self.exc_info = exc_info
+
+    @property
+    def is_failed(self):
+        return self._status == "failed"
+
+    def get_status(self, refresh=False):
+        return self._status
+
+
+class FakeQueue:
+    def __init__(self):
+        self.calls = []
+        self.job = FakeQueuedJob()
+
+    def enqueue(self, job_path, file_bytes, filename):
+        self.calls.append(
+            {
+                "job_path": job_path,
+                "file_bytes": file_bytes,
+                "filename": filename,
+            }
+        )
+        return self.job
