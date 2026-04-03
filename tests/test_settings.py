@@ -40,7 +40,7 @@ def test_settings_require_pinecone_host_for_pinecone_backend():
             "OPENAI_API_KEY": "test-key",
             "VECTOR_STORE_BACKEND": "pinecone",
             "PINECONE_API_KEY": "pinecone-key",
-            "PINECONE_INDEX_HOST": None,
+            "PINECONE_INDEX_HOST": "",
         }
     )
 

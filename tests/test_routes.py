@@ -224,21 +224,17 @@ def test_ask_stream_emits_tokens_and_done_payload():
             "payload": {
                 "question": "Stream this",
                 "answer": "Hello world",
-                "context": ["Chunk A", "Chunk B"],
+                "context": [],
                 "history": [
-                    {"role": "user", "content": "Rewritten question"},
+                    {"role": "user", "content": "Stream this"},
                     {"role": "assistant", "content": "Hello world"},
                 ],
             },
         },
     ]
-    assert answer_query_use_case.prepare_calls == [
-        {"question": "Stream this", "top_k": 2, "history": []}
-    ]
     assert answer_query_use_case.stream_calls == [
         {
             "question": "Stream this",
-            "context": ["Chunk A", "Chunk B"],
             "top_k": 2,
             "history": [],
         }

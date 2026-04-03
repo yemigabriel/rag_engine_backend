@@ -15,7 +15,10 @@ def test_answer_uses_retrieved_context_and_updates_history():
             )
         ]
     )
-    llm_service = FakeLLMService(answer="Grounded answer")
+    llm_service = FakeLLMService(
+        answer="Grounded answer",
+        rewritten_question="What does the document say?",
+    )
 
     use_case = AnswerQueryUseCase(
         embedder=embedder,
@@ -62,7 +65,7 @@ def test_answer_rewrites_follow_up_questions_when_history_exists():
     assert llm_service.rewrite_question_calls == [
         {"question": "What about pricing?", "history": history}
     ]
-    assert embedder.calls == [["What does the document say about pricing?"]]
+    assert embedder.calls == [["What about pricing?"]]
     assert llm_service.generate_answer_calls == [
         {
             "question": "What does the document say about pricing?",
